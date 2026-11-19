@@ -12,10 +12,21 @@ import Module5View from './modules/Module5View';
 import Module6View from './modules/Module6View';
 
 const STORAGE_KEY = 'bit-coa-mastered-modules-v1';
+const VALID_ROUTES: RouteId[] = ['overview', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'formulas'];
+
+function parseHashRoute(): { route: RouteId; anchor?: string } {
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  if (!raw) return { route: 'overview' };
+  const [r, anchor] = raw.split('/');
+  if (VALID_ROUTES.includes(r as RouteId)) {
+    return { route: r as RouteId, anchor };
+  }
+  return { route: 'overview' };
+}
 
 export default function App() {
-  const [route, setRoute] = useState<RouteId>('overview');
-  const [activeAnchor, setActiveAnchor] = useState<string>('');
+  const [route, setRoute] = useState<RouteId>(() => parseHashRoute().route);
+  const [activeAnchor, setActiveAnchor] = useState<string>(() => parseHashRoute().anchor || '');
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileRailOpen, setMobileRailOpen] = useState(false);
@@ -49,6 +60,10 @@ export default function App() {
     setMobileRailOpen(false);
     setSearchOpen(false);
     setQuery('');
+    const nextHash = anchor ? `#${nextRoute}/${anchor}` : `#${nextRoute}`;
+    if (window.location.hash !== nextHash) {
+      window.history.pushState(null, '', nextHash);
+    }
     if (anchor) {
       setActiveAnchor(anchor);
       setTimeout(() => {
@@ -60,6 +75,25 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const parsed = parseHashRoute();
+      setRoute(parsed.route);
+      if (parsed.anchor) {
+        setActiveAnchor(parsed.anchor);
+        setTimeout(() => {
+          const el = document.getElementById(parsed.anchor!);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 60);
+      } else {
+        setActiveAnchor('');
+        window.scrollTo({ top: 0 });
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   // Build search index across all modules & sections
   const searchResults = useMemo(() => {
